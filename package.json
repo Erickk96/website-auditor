@@ -1,0 +1,16 @@
+{
+  "name": "website-auditor",
+  "version": "1.0.0",
+  "description": "Interactive website auditor — checks status, latency, SSL, and broken links.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
