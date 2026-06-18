@@ -147,6 +147,36 @@ function extractLinks(html, baseUrl) {
   return [...links];
 }
 
+// ── Diagnose common failure pages ────────────────────────────────────────────
+// Reads the response body (when present) and the status/error to give a
+// plain-English explanation of *why* a site is broken — not just a status code.
+function diagnosePage({ status, body = '', error = '' }) {
+  const text = (body || '').toLowerCase();
+
+  // Connection-level failures (no body)
+  if (/enotfound/i.test(error)) return { code: 'dns', label: 'Domain does not resolve (DNS) — check the domain is registered and pointed correctly.' };
+  if (/econnrefused/i.test(error)) return { code: 'refused', label: 'Connection refused — the web server is not accepting connections.' };
+  if (/timeout/i.test(error)) return { code: 'timeout', label: 'Timed out — server reachable (SSL ok) but not responding in time. Often a database/PHP hang.' };
+  if (/cert|tls|ssl/i.test(error)) return { code: 'tls', label: 'SSL/TLS problem — certificate may be invalid or expired.' };
+
+  // Content signatures (body present, even on a 500)
+  if (text.includes('error establishing a database connection'))
+    return { code: 'wp-db', label: 'WordPress can\'t reach its database (MySQL down or overloaded).' };
+  if (text.includes('there has been a critical error'))
+    return { code: 'wp-critical', label: 'WordPress critical error — usually a broken plugin or PHP fault.' };
+  if (/account.{0,20}suspended|site.{0,20}suspended|suspended.{0,20}page/i.test(text))
+    return { code: 'suspended', label: 'Hosting account/site appears SUSPENDED — billing or policy issue with the host.' };
+  if (/maintenance|briefly unavailable for scheduled maintenance/i.test(text))
+    return { code: 'maintenance', label: 'Site is in maintenance mode.' };
+
+  // Status-based fallbacks
+  if (status === 0) return { code: 'unreachable', label: 'Unreachable — no response from the server.' };
+  if (status >= 500) return { code: 'server-error', label: `Server error (${status}) — the site\'s server failed to handle the request.` };
+  if (status === 403) return { code: 'forbidden', label: 'Forbidden (403) — access blocked by the server.' };
+  if (status === 404) return { code: 'notfound', label: 'Not found (404) — the page/site is missing.' };
+  return null; // healthy or unremarkable
+}
+
 // ── Concurrency-limited link checker ─────────────────────────────────────────
 async function checkLinks(links, { limit = 8, max = 25 } = {}) {
   const slice = links.slice(0, max);
@@ -206,6 +236,8 @@ app.post('/api/audit', async (req, res) => {
     inspectSSL(url)
   ]);
 
+  let body = '';
+
   if (probeResult.status === 'fulfilled') {
     const p = probeResult.value;
     result.status = p.status;
@@ -214,6 +246,7 @@ app.post('/api/audit', async (req, res) => {
     result.redirected = !!p.redirected;
     result.server = p.headers?.server || null;
     result.contentType = p.headers?.['content-type'] || null;
+    body = p.body || '';
 
     if (p.body && p.status >= 200 && p.status < 400) {
       const links = extractLinks(p.body, result.finalUrl);
@@ -228,6 +261,9 @@ app.post('/api/audit', async (req, res) => {
   }
 
   result.ssl = sslResult.status === 'fulfilled' ? sslResult.value : { valid: false, error: 'SSL check failed' };
+
+  // Plain-English explanation of any problem (null when the site looks healthy)
+  result.diagnosis = diagnosePage({ status: result.status, body, error: result.error || '' });
 
   res.json(result);
 });

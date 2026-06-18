@@ -460,7 +460,8 @@ async function auditOne(url) {
       linksChecked: data.links?.checked || 0,
       redirected: data.redirected,
       server: data.server,
-      error: data.error
+      error: data.error,
+      diagnosis: data.diagnosis
     };
   } catch (err) {
     return {
@@ -549,6 +550,7 @@ function renderResult(card, r) {
         <div class="metric-value ${brokenLinks.length > 0 ? 'bad' : 'good'}">${brokenLinks.length} / ${r.linksChecked} checked</div>
       </div>
     </div>
+    ${r.diagnosis ? `<div style="margin-top:14px;padding:12px 14px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:0.85rem;color:#fca5a5"><strong>Diagnosis:</strong> ${escHtml(r.diagnosis.label)}</div>` : ''}
     ${ssl.valid && ssl.issuer ? `<p style="margin-top:12px;font-size:0.8rem;color:var(--muted)">Issuer: ${escHtml(ssl.issuer)} · Expires ${escHtml(ssl.validTo || '')}</p>` : ''}
     ${r.redirected ? `<p style="margin-top:8px;font-size:0.8rem;color:var(--muted)">↪ Redirected to ${escHtml(r.url)}</p>` : ''}
     ${r.error ? `<p style="margin-top:8px;font-size:0.8rem;color:var(--red)">${escHtml(r.error)}</p>` : ''}
