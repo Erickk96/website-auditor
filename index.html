@@ -391,12 +391,24 @@ async function auditUrls(urls) {
   const cards = urls.map(url => createResultCard(url));
   let done = 0;
 
-  await Promise.all(urls.map(async (url, i) => {
-    const result = await auditOne(url);
-    renderResult(cards[i], result);
-    done++;
-    setProgress(done, urls.length);
-  }));
+  // Throttle: process at most CONCURRENCY domains at a time so large bulk
+  // lists (50+) don't fire hundreds of simultaneous requests and crash the server.
+  const CONCURRENCY = 5;
+  let next = 0;
+
+  async function worker() {
+    while (next < urls.length) {
+      const i = next++;
+      const result = await auditOne(urls[i]);
+      renderResult(cards[i], result);
+      done++;
+      setProgress(done, urls.length);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(CONCURRENCY, urls.length) }, worker)
+  );
 
   hideProgress();
 }
