@@ -95,6 +95,7 @@ function buildEmail({ up, errored, down, sslWarn }, total, stampedAt) {
     ${section('🔴 Down / Unreachable', down)}
     ${section('⚠️ Errors', errored)}
     ${section('🔒 SSL Needs Attention', sslWarn)}
+    ${section('✅ Up / Healthy', up)}
     <p style="color:#999;font-size:12px;margin-top:24px">Automated report from your Website Auditor.</p>
   </div>`;
 
