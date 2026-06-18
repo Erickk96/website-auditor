@@ -331,6 +331,19 @@
   <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar" style="width:0%"></div></div>
 </div>
 
+<div id="scorecard" style="display:none">
+  <div class="card" style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:16px 24px">
+    <div style="display:flex;gap:18px;flex-wrap:wrap;flex:1">
+      <span class="score" id="score-up">✅ <strong>0</strong> up</span>
+      <span class="score" id="score-err">⚠️ <strong>0</strong> errors</span>
+      <span class="score" id="score-down">🔴 <strong>0</strong> down</span>
+      <span class="score" id="score-ssl">🔒 <strong>0</strong> SSL</span>
+      <span class="score" style="color:var(--muted)" id="score-total">of 0</span>
+    </div>
+    <button class="primary" id="btn-csv" style="background:transparent;border:1px solid var(--accent);color:var(--accent)">Download CSV</button>
+  </div>
+</div>
+
 <div id="results">
   <p class="empty" id="empty-state">Enter a URL above and hit Audit to get started.</p>
 </div>
@@ -415,10 +428,17 @@ document.getElementById('btn-load-20i').addEventListener('click', async () => {
   }
 });
 
+// Holds every result from the latest run — used by the scorecard + CSV export.
+let lastResults = [];
+
 // ── Main audit orchestrator ─────────────────────────────────────────────────
 async function auditUrls(urls) {
   document.getElementById('empty-state')?.remove();
   setProgress(0, urls.length);
+
+  lastResults = [];
+  document.getElementById('scorecard').style.display = 'block';
+  updateScorecard(urls.length);
 
   const cards = urls.map(url => createResultCard(url));
   let done = 0;
@@ -433,6 +453,8 @@ async function auditUrls(urls) {
       const i = next++;
       const result = await auditOne(urls[i]);
       renderResult(cards[i], result);
+      lastResults.push(result);
+      updateScorecard(urls.length);
       done++;
       setProgress(done, urls.length);
     }
@@ -444,6 +466,59 @@ async function auditUrls(urls) {
 
   hideProgress();
 }
+
+// ── Scorecard + CSV export ───────────────────────────────────────────────────
+function classify(r) {
+  if (r.status >= 200 && r.status < 400) return 'up';
+  if (r.status === 0) return 'down';
+  return 'error';
+}
+
+function hasSslIssue(r) {
+  const s = r.ssl || {};
+  if (s.protocol === 'http') return false;
+  return s.expired || (s.valid && typeof s.daysLeft === 'number' && s.daysLeft < 14) || (!s.valid && !!s.error);
+}
+
+function updateScorecard(total) {
+  const up = lastResults.filter(r => classify(r) === 'up').length;
+  const err = lastResults.filter(r => classify(r) === 'error').length;
+  const down = lastResults.filter(r => classify(r) === 'down').length;
+  const ssl = lastResults.filter(hasSslIssue).length;
+  document.querySelector('#score-up strong').textContent = up;
+  document.querySelector('#score-err strong').textContent = err;
+  document.querySelector('#score-down strong').textContent = down;
+  document.querySelector('#score-ssl strong').textContent = ssl;
+  document.getElementById('score-total').textContent = `of ${total}`;
+}
+
+function csvCell(v) {
+  const s = String(v ?? '');
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+document.getElementById('btn-csv').addEventListener('click', () => {
+  if (!lastResults.length) return;
+  const header = ['URL', 'Health', 'Status', 'Status Text', 'Response (ms)', 'SSL', 'SSL Days Left', 'Diagnosis'];
+  const rows = lastResults.map(r => [
+    r.url,
+    classify(r),
+    r.status ?? '',
+    r.statusText ?? '',
+    r.latency ?? '',
+    r.ssl?.protocol === 'http' ? 'none' : (r.ssl?.valid ? 'valid' : 'invalid'),
+    r.ssl?.daysLeft ?? '',
+    r.diagnosis?.label || r.error || ''
+  ].map(csvCell).join(','));
+  const csv = [header.join(','), ...rows].join('\n');
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'website-audit.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
 
 // ── Audit a single URL (delegates to backend) ───────────────────────────────
 async function auditOne(url) {
