@@ -425,7 +425,7 @@ async function auditUrls(urls) {
 
   // Throttle: process at most CONCURRENCY domains at a time so large bulk
   // lists (50+) don't fire hundreds of simultaneous requests and crash the server.
-  const CONCURRENCY = 5;
+  const CONCURRENCY = 3;
   let next = 0;
 
   async function worker() {

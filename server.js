@@ -187,9 +187,22 @@ app.post('/api/audit', async (req, res) => {
 
   const result = { url, status: null, latency: null, ssl: null, links: null, error: null };
 
+  // Probe with one retry: slow shared hosts often time out on the first hit
+  // (especially under concurrent load) but answer fine on a second attempt.
+  async function probeWithRetry() {
+    try {
+      return await probe(url, { method: 'GET', timeout: 30000 });
+    } catch (err) {
+      if (/timeout/i.test(err.message)) {
+        return await probe(url, { method: 'GET', timeout: 30000 });
+      }
+      throw err;
+    }
+  }
+
   // Run main probe + SSL in parallel
   const [probeResult, sslResult] = await Promise.allSettled([
-    probe(url, { method: 'GET' }),
+    probeWithRetry(),
     inspectSSL(url)
   ]);
 
