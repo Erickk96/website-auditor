@@ -316,9 +316,13 @@
   </div>
 
   <div class="panel" id="panel-bulk">
-    <p class="hint">One URL per line.</p>
+    <p class="hint">One URL per line. Or pull every domain from your 20i account.</p>
     <textarea id="bulk-input" placeholder="https://example.com&#10;https://google.com&#10;https://github.com"></textarea>
-    <button class="primary" id="btn-bulk">Audit All</button>
+    <div class="input-row" style="justify-content:space-between;align-items:center">
+      <button class="primary" id="btn-load-20i" style="background:transparent;border:1px solid var(--accent);color:var(--accent)">Load my 20i domains</button>
+      <button class="primary" id="btn-bulk">Audit All</button>
+    </div>
+    <p class="hint" id="load-20i-status" style="margin-top:10px;margin-bottom:0"></p>
   </div>
 </div>
 
@@ -382,6 +386,34 @@ function normalizeUrl(u) {
   if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
   return u;
 }
+
+// ── Load domains from 20i ────────────────────────────────────────────────────
+document.getElementById('btn-load-20i').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-load-20i');
+  const status = document.getElementById('load-20i-status');
+  btn.disabled = true;
+  status.style.color = 'var(--muted)';
+  status.textContent = 'Fetching domains from 20i…';
+
+  try {
+    const res = await fetch('/api/domains');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || ('Error ' + res.status));
+
+    const box = document.getElementById('bulk-input');
+    const existing = box.value.trim();
+    const lines = data.domains.map(d => 'https://' + d);
+    box.value = (existing ? existing + '\n' : '') + lines.join('\n');
+
+    status.style.color = 'var(--green)';
+    status.textContent = `Loaded ${data.count} domain${data.count === 1 ? '' : 's'} — review the list, then Audit All.`;
+  } catch (err) {
+    status.style.color = 'var(--red)';
+    status.textContent = err.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 // ── Main audit orchestrator ─────────────────────────────────────────────────
 async function auditUrls(urls) {
