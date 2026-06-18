@@ -114,7 +114,11 @@ async function main() {
   console.log(subject);
   console.log(`up=${buckets.up.length} errored=${buckets.errored.length} down=${buckets.down.length} sslWarn=${buckets.sslWarn.length}`);
 
-  const { SMTP_HOST = 'smtp.gmail.com', SMTP_PORT = '465', SMTP_USER, SMTP_PASS, MAIL_TO, MAIL_FROM } = process.env;
+  // Use || (not destructuring defaults) so empty-string env vars — which is how
+  // GitHub Actions passes secrets that don't exist — fall back correctly.
+  const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const SMTP_PORT = process.env.SMTP_PORT || '465';
+  const { SMTP_USER, SMTP_PASS, MAIL_TO, MAIL_FROM } = process.env;
 
   if (!SMTP_USER || !SMTP_PASS || !MAIL_TO) {
     console.log('\n[no SMTP credentials set — skipping email, printed summary only]');
