@@ -1,0 +1,31 @@
+name: Website Monitor
+
+# Runs the auditor on a schedule and emails a report.
+# Schedule below is 13:00 UTC, Monday–Friday = 7:00 AM Mexico City (UTC-6).
+#   • To change the time: edit the hour in the cron (it's in UTC).
+#   • Cron is UTC and does NOT follow daylight saving — adjust if needed.
+#   • 7am Pacific  ≈ '0 14 * * 1-5'  (summer) / '0 15 * * 1-5' (winter)
+#   • 7am Central  ≈ '0 13 * * 1-5'  (no DST in Mexico City)
+on:
+  schedule:
+    - cron: '0 13 * * 1-5'
+  workflow_dispatch: {}   # lets you run it manually from the Actions tab
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci || npm install
+      - name: Run audit and email report
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+        run: node report.js
