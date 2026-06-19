@@ -8,13 +8,14 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0f1117;
-      --surface: #1a1d27;
-      --border: #2a2d3a;
-      --accent: #6c63ff;
-      --accent-dim: #3d3880;
-      --text: #e8eaf0;
-      --muted: #7a7f96;
+      --bg: #070b16;
+      --surface: #131a2b;
+      --border: #232b40;
+      --accent: #3b6ff5;
+      --accent-dim: #1e2d5c;
+      --accent-grad: linear-gradient(135deg, #8b5cf6, #3b6ff5);
+      --text: #eaf0ff;
+      --muted: #8a93a8;
       --green: #22c55e;
       --yellow: #f59e0b;
       --red: #ef4444;
@@ -120,7 +121,7 @@
     }
 
     button.primary {
-      background: var(--accent);
+      background: var(--accent-grad);
       color: #fff;
       border: none;
       border-radius: 8px;
