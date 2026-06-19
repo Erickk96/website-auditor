@@ -182,7 +182,11 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      color: var(--text);
+      text-decoration: none;
     }
+
+    .result-url:hover { color: var(--accent); text-decoration: underline; }
 
     .result-summary {
       font-size: 0.8rem;
@@ -597,12 +601,14 @@ function createResultCard(url) {
   card.innerHTML = `
     <div class="result-header">
       <span class="status-dot loading"></span>
-      <span class="result-url">${escHtml(url)}</span>
+      <a class="result-url" href="${escHtml(url)}" target="_blank" rel="noopener" title="Open site in a new tab">${escHtml(url)} ↗</a>
       <span class="result-summary">Checking…</span>
       <span class="chevron">▶</span>
     </div>
     <div class="result-body"></div>
   `;
+  // Clicking the link opens the real site in a new tab — don't toggle the card.
+  card.querySelector('.result-url').addEventListener('click', e => e.stopPropagation());
   card.querySelector('.result-header').addEventListener('click', () => {
     card.classList.toggle('open');
   });
