@@ -437,6 +437,8 @@ async function auditUrls(urls) {
   setProgress(0, urls.length);
 
   lastResults = [];
+  activeFilter = null;
+  document.querySelectorAll('#scorecard .score').forEach(s => s.style.textDecoration = 'none');
   document.getElementById('scorecard').style.display = 'block';
   updateScorecard(urls.length);
 
@@ -520,6 +522,33 @@ document.getElementById('btn-csv').addEventListener('click', () => {
   URL.revokeObjectURL(a.href);
 });
 
+// ── Click-to-filter via the scorecard ────────────────────────────────────────
+let activeFilter = null; // 'up' | 'error' | 'down' | 'ssl' | null (show all)
+
+function applyFilter() {
+  document.querySelectorAll('.result-card').forEach(card => {
+    let show = true;
+    if (activeFilter === 'ssl') show = card.dataset.ssl === '1';
+    else if (activeFilter) show = card.dataset.health === activeFilter;
+    card.style.display = show ? '' : 'none';
+  });
+}
+
+const FILTERS = { 'score-up': 'up', 'score-err': 'error', 'score-down': 'down', 'score-ssl': 'ssl' };
+for (const [id, key] of Object.entries(FILTERS)) {
+  const el = document.getElementById(id);
+  el.style.cursor = 'pointer';
+  el.title = 'Click to show only these';
+  el.addEventListener('click', () => {
+    activeFilter = activeFilter === key ? null : key; // toggle off if already active
+    for (const fid of Object.keys(FILTERS)) {
+      document.getElementById(fid).style.textDecoration =
+        (FILTERS[fid] === activeFilter) ? 'underline' : 'none';
+    }
+    applyFilter();
+  });
+}
+
 // ── Audit a single URL (delegates to backend) ───────────────────────────────
 async function auditOne(url) {
   try {
@@ -584,6 +613,11 @@ function renderResult(card, r) {
   const dot = card.querySelector('.status-dot');
   const summary = card.querySelector('.result-summary');
   const body = card.querySelector('.result-body');
+
+  // Tag the card so the scorecard can filter it.
+  card.dataset.health = classify(r);
+  card.dataset.ssl = hasSslIssue(r) ? '1' : '0';
+  applyFilter();
 
   dot.className = 'status-dot ' + statusClass(r.status);
   summary.textContent = r.statusText + (r.latency != null ? ` · ${r.latency}ms` : '');
